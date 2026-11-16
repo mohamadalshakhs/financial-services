@@ -67,8 +67,8 @@ export function ProfileGate({
           <div className="mt-8 flex items-start gap-3 rounded-2xl border border-accent/30 bg-guide p-4 text-sm leading-6">
             <ShieldAlert className="mt-1 h-4 w-4 shrink-0 text-accent-ink" aria-hidden />
             <p>{dir === 'rtl'
-              ? 'الملفات بدون كلمة مرور، وأي شخص يستخدم هذا المتصفح يقدر يشوفها. لا تضف معلومات خاصة.'
-              : 'Profiles have no password. Anyone using this browser can open them, so don’t add private information.'}</p>
+              ? 'لكل ملف رمز PIN من ٤ أرقام على هذا المتصفح. هذا قفل خصوصية بسيط، مو تسجيل دخول يحمي البيانات بالكامل.'
+              : 'Each profile has its own four-digit PIN on this browser. It is a simple privacy lock, not full account security.'}</p>
           </div>
         </section>
 

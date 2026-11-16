@@ -8,6 +8,7 @@ import type { SectionId } from '@/lib/i18n';
 import { parseNum, parseMoney, filsToStr, fromFils, totals, type Config, type Expense, type Kind } from '@/lib/finance';
 import { DecisionGuideChat } from '@/components/decision-guide-chat';
 import { ProfileGate } from '@/components/profile-gate';
+import { ProfilePinGate } from '@/components/profile-pin-gate';
 import { ProfileBudgetSetup } from '@/components/profile-budget-setup';
 import {
   getGetFinancialProfilesQueryKey,
@@ -33,6 +34,7 @@ export default function Home() {
   const createProfile = useCreateFinancialProfile();
   const saveProfileData = useSaveProfileFinancialData();
   const [activeProfile, setActiveProfile] = useState<FinancialProfile | null>(null);
+  const [pinProfile, setPinProfile] = useState<FinancialProfile | null>(null);
   const profileId = activeProfile?.id ?? '';
   const profileData = useGetProfileFinancialData(profileId, {
     query: { enabled: !!activeProfile, queryKey: getGetProfileFinancialDataQueryKey(profileId) },
@@ -144,11 +146,19 @@ export default function Home() {
     setActiveProfile(profile);
   };
 
+  const unlockProfile = () => {
+    if (!pinProfile) return;
+    const profile = pinProfile;
+    setPinProfile(null);
+    chooseProfile(profile);
+  };
+
   const switchProfile = () => {
     if (dirty || storageStatus === 'saving' || saveProfileData.isPending) return;
     initializedProfileId.current = null;
     revision.current += 1;
     setActiveProfile(null);
+    setPinProfile(null);
     setStorageReady(false);
     setDirty(false);
     setSetupSaveError(false);
@@ -162,7 +172,7 @@ export default function Home() {
         queryClient.setQueryData<FinancialProfilesResponse>(profilesKey, {
           profiles: [...(current?.profiles ?? []).filter((item) => item.id !== profile.id), profile],
         });
-        chooseProfile(profile);
+        setPinProfile(profile);
       },
     });
   };
@@ -274,6 +284,15 @@ export default function Home() {
   const fields: [DraftKey, string, string][] = [['salary', d.fSalary, d.errSalary], ['outingLimit', d.fOuting, d.errOuting], ['payday', d.fPayday, d.errPayday]];
 
   if (!activeProfile) {
+    if (pinProfile) {
+      return (
+        <ProfilePinGate
+          profile={pinProfile}
+          onUnlock={unlockProfile}
+          onCancel={() => setPinProfile(null)}
+        />
+      );
+    }
     return (
       <ProfileGate
         profiles={profilesQuery.data?.profiles ?? []}
@@ -283,7 +302,7 @@ export default function Home() {
         createError={createProfile.isError}
         onRetry={() => void profilesQuery.refetch()}
         onCreate={handleCreateProfile}
-        onSelect={chooseProfile}
+        onSelect={setPinProfile}
       />
     );
   }
