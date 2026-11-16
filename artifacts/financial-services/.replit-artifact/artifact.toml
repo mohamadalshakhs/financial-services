@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Financial services"
+description = "صفحة رئيسية عربية تجريبية تساعد الموظف الجديد يتابع مصاريفه الاجتماعية وميزانية الطلعات، بدون ربط بيانات أو AI في هذه المرحلة."
+version = "1.0.0"
+id = "artifacts/financial-services"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 26003
+
+[services.development]
+run = "pnpm --filter @workspace/financial-services run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/financial-services", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/financial-services/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "26003"
+BASE_PATH = "/"

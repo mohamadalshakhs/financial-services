@@ -1,0 +1,365 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+paths:
+  /financial-profiles:
+    get:
+      operationId: getFinancialProfiles
+      tags: [financial-profiles]
+      summary: List family profiles tied to this browser
+      responses:
+        "200":
+          description: Profiles available to this browser
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinancialProfilesResponse"
+        "503":
+          description: Supabase storage is unavailable
+    post:
+      operationId: createFinancialProfile
+      tags: [financial-profiles]
+      summary: Create a family profile without a password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFinancialProfileInput"
+      responses:
+        "201":
+          description: The new profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinancialProfile"
+        "400":
+          description: Invalid profile name
+        "409":
+          description: A profile with this name already exists
+        "503":
+          description: Supabase storage is unavailable
+  /financial-profiles/{profileId}/financial-data:
+    parameters:
+      - in: path
+        name: profileId
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getProfileFinancialData
+      tags: [financial-profiles]
+      summary: Load a family member's saved salary settings and expenses
+      responses:
+        "200":
+          description: Saved data, or null when this profile has not saved yet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinancialDataLoad"
+        "404":
+          description: The profile is not available to this browser
+        "503":
+          description: Supabase storage is unavailable
+    put:
+      operationId: saveProfileFinancialData
+      tags: [financial-profiles]
+      summary: Save a family member's salary settings and expenses
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinancialDataInput"
+      responses:
+        "200":
+          description: Saved data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinancialDataSnapshot"
+        "400":
+          description: Invalid financial data
+        "404":
+          description: The profile is not available to this browser
+        "503":
+          description: Supabase storage is unavailable
+  /financial-data:
+    get:
+      operationId: getFinancialData
+      tags: [financial-data]
+      summary: Load this browser's saved salary settings and expenses
+      responses:
+        "200":
+          description: Saved data, or null when this browser has not saved yet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinancialDataLoad"
+        "503":
+          description: Supabase storage is unavailable
+    put:
+      operationId: saveFinancialData
+      tags: [financial-data]
+      summary: Save this browser's salary settings and expenses
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinancialDataInput"
+      responses:
+        "200":
+          description: Saved data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FinancialDataSnapshot"
+        "400":
+          description: Invalid financial data
+        "503":
+          description: Supabase storage is unavailable
+  /openrouter/decision-guide:
+    post:
+      operationId: askDecisionGuide
+      tags: [guide]
+      summary: Get contextual social spending guidance without storing a conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuideInput"
+      responses:
+        "200":
+          description: Generated guidance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuideReply"
+        "400":
+          description: Invalid input
+        "429":
+          description: Too many requests
+        "502":
+          description: AI provider unavailable
+        "504":
+          description: AI response timed out
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+components:
+  schemas:
+    FinancialProfilesResponse:
+      type: object
+      required: [profiles]
+      properties:
+        profiles:
+          type: array
+          items:
+            $ref: "#/components/schemas/FinancialProfile"
+    FinancialProfile:
+      type: object
+      required: [id, name, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 40
+        createdAt:
+          type: string
+          format: date-time
+    CreateFinancialProfileInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 40
+    FinancialDataLoad:
+      type: object
+      required: [data]
+      properties:
+        data:
+          oneOf:
+            - $ref: "#/components/schemas/FinancialDataSnapshot"
+            - type: "null"
+    FinancialDataSnapshot:
+      type: object
+      required: [cfg, expenses, version]
+      properties:
+        cfg:
+          $ref: "#/components/schemas/FinancialConfig"
+        expenses:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/FinancialExpense"
+        version:
+          type: integer
+          minimum: 0
+    FinancialDataInput:
+      type: object
+      required: [cfg, expenses]
+      properties:
+        cfg:
+          $ref: "#/components/schemas/FinancialConfig"
+        expenses:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/FinancialExpense"
+    FinancialConfig:
+      type: object
+      required: [salary, outingLimit, payday, fixed]
+      properties:
+        salary:
+          type: integer
+          minimum: 1
+          maximum: 999999999
+        outingLimit:
+          type: integer
+          minimum: 0
+          maximum: 999999999
+        payday:
+          type: integer
+          minimum: 1
+          maximum: 31
+        fixed:
+          type: integer
+          minimum: 0
+          maximum: 999999999
+    FinancialExpense:
+      type: object
+      required: [id, fils, kind, day]
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        seedKey:
+          type: string
+          enum: [dinner, fuel, coffee, groceries, cinema, phone]
+        title:
+          type: string
+          maxLength: 120
+        fils:
+          type: integer
+          minimum: 1
+          maximum: 999999999
+        kind:
+          type: string
+          enum: [outing, basic]
+        day:
+          type: string
+          enum: [now, yesterday, twoDays, threeDays, fourDays, week]
+    GuideLimitError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          enum: [RATE_LIMITED, DAILY_LIMIT_REACHED, USAGE_LIMIT_REACHED]
+    GuideProtectionError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          enum: [USAGE_PROTECTION_UNAVAILABLE]
+    GuideInput:
+      type: object
+      required: [message, language, context, history]
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 1500
+        language:
+          type: string
+          enum: [ar, en]
+        context:
+          $ref: "#/components/schemas/GuideContext"
+        history:
+          type: array
+          maxItems: 12
+          items:
+            $ref: "#/components/schemas/GuideMessage"
+    GuideContext:
+      type: object
+      required: [salary, fixedCommitments, totalSpent, outingsSpent, outingsLimit, payday]
+      properties:
+        salary:
+          type: number
+          minimum: 0
+          maximum: 1000000000
+        fixedCommitments:
+          type: number
+          minimum: 0
+          maximum: 1000000000
+        totalSpent:
+          type: number
+          minimum: 0
+          maximum: 1000000000
+        outingsSpent:
+          type: number
+          minimum: 0
+          maximum: 1000000000
+        outingsLimit:
+          type: number
+          minimum: 0
+          maximum: 1000000000
+        payday:
+          type: integer
+          minimum: 1
+          maximum: 31
+    GuideMessage:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+          minLength: 1
+          maxLength: 6000
+    GuideReply:
+      type: object
+      required: [reply]
+      properties:
+        reply:
+          type: string
+          minLength: 1
+          maxLength: 6000
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
